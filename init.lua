@@ -1,79 +1,27 @@
----@diagnostic disable: undefined-field
-vim.g.base46_cache = vim.fn.stdpath "data" .. "/nvchad/base46/"
-vim.g.mapleader = " "
-vim.g.maplocalleader = " "
+-- This file simply bootstraps the installation of Lazy.nvim and then calls other files for execution
+-- This file doesn't necessarily need to be touched, BE CAUTIOUS editing this file and proceed at your own risk.
+local lazypath = vim.env.LAZY or vim.fn.stdpath "data" .. "/lazy/lazy.nvim"
 
--- bootstrap lazy and all plugins
-local lazypath = vim.fn.stdpath "data" .. "/lazy/lazy.nvim"
-
--- Install lazy if not in path
-if not vim.uv.fs_stat(lazypath) then
-  local lazyrepo = "https://github.com/folke/lazy.nvim.git"
-  local out = vim.fn.system { "git", "clone", "--filter=blob:none", "--branch=stable", lazyrepo, lazypath }
+if not (vim.env.LAZY or (vim.uv or vim.loop).fs_stat(lazypath)) then
+  -- stylua: ignore
+  local result = vim.fn.system({ "git", "clone", "--filter=blob:none", "https://github.com/folke/lazy.nvim.git", "--branch=stable", lazypath })
   if vim.v.shell_error ~= 0 then
-    vim.api.nvim_echo({
-      { "Failed to clone lazy.nvim:\n", "ErrorMsg" },
-      { out, "WarningMsg" },
-      { "\nPress any key to exit..." },
-    }, true, {})
+    -- stylua: ignore
+    vim.api.nvim_echo({ { ("Error cloning lazy.nvim:\n%s\n"):format(result), "ErrorMsg" }, { "Press any key to exit...", "MoreMsg" } }, true, {})
     vim.fn.getchar()
-    os.exit(1)
+    vim.cmd.quit()
   end
-  vim.cmd "autocmd User LazyDone lua require('nvchad.mason').install_all()"
 end
 
 vim.opt.rtp:prepend(lazypath)
 
-local lazy_config = require "configs.lazy"
-
--- load plugins
-require("lazy").setup({
-  {
-    "NvChad/NvChad",
-    lazy = false,
-    branch = "v2.5",
-    import = "nvchad.plugins",
-    config = function()
-      require "options"
-    end,
-  },
-
-  { import = "plugins" },
-}, lazy_config)
-
--- load theme
-for _, v in ipairs(vim.fn.readdir(vim.g.base46_cache)) do
-  dofile(vim.g.base46_cache .. v)
+-- validate that lazy is available
+if not pcall(require, "lazy") then
+  -- stylua: ignore
+  vim.api.nvim_echo({ { ("Unable to load lazy from: %s\n"):format(lazypath), "ErrorMsg" }, { "Press any key to exit...", "MoreMsg" } }, true, {})
+  vim.fn.getchar()
+  vim.cmd.quit()
 end
 
--- Re-activate providers
-for _, v in ipairs { "python3_provider", "node_provider" } do
-  vim.g["loaded_" .. v] = nil
-  vim.cmd("runtime " .. v)
-end
-
-require "nvchad.autocmds"
-
-vim.schedule(function()
-  require "mappings"
-end)
-
--- @Custom
-require "custom.utils.usercmd"
-require "custom.utils.autocmd"
-
-if vim.g.neovide and vim.fn.getcwd() == "/" then
-  vim.cmd "cd ~"
-end
-
-vim.fn.sign_define("DapBreakpoint", { text = "󰙧", numhl = "DapBreakpoint", texthl = "DapBreakpoint" })
-vim.fn.sign_define("DagLogPoint", { text = "", numhl = "DapLogPoint", texthl = "DapLogPoint" })
-vim.fn.sign_define("DapStopped", { text = "", numhl = "DapStopped", texthl = "DapStopped" })
-vim.fn.sign_define(
-  "DapBreakpointRejected",
-  { text = "", numhl = "DapBreakpointRejected", texthl = "DapBreakpointRejected" }
-)
-vim.fn.sign_define(
-  "DapBreakpointCondition",
-  { text = "", numhl = "DapBreakpointCondition", texthl = "DapBreakpointCondition" }
-)
+require "lazy_setup"
+require "polish"
